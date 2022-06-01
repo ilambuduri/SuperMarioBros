@@ -1,39 +1,51 @@
-import SpriteSheet from './SpriteSheet.js';
-import { loadImage,loadLevel } from './loaders.js';
+console.time("answer time");
+import Compositor from "./comp.js";
+import { createBackgroundLayer } from "./layers.js";
+import { loadLevel } from "./loaders.js";
+import { loadMarioSprite, loadBackgroundSprites } from "./sprites.js";
 
 
+const canvas = document.getElementById("screen");
+const context = canvas.getContext("2d");
 
-function drawBackground(background,context,sprites) {
+function createSpriteLayer(sprite,pos) {
+    return function drawSpriteLayer(context) {
 
-    background.ranges.forEach(([x1,x2,y1,y2]) =>{
-
-        for(let x = x1; x < x2; ++x){
-            for(let y = y1; y < y2; ++y){
-                sprites.drawTile(background.tile,context,x, y);
-            }
+        for(let i = 0; i < 20 ; ++i ){
+        sprite.draw('idle',context,pos.x + i * 16,pos.y)
         }
-    });  
+    }
+    
 }
-const  canvas = document.getElementById('screen');
-const  context = canvas.getContext("2d");
 
-loadImage('/img/tiles.png')
-.then(image =>{
+Promise.all([
+  loadMarioSprite(),
+  loadBackgroundSprites(),
+  loadLevel("1-1"),
+]).then(([marioSprite, backgroundSprites, level]) => {
+  const comp =  new Compositor();
 
-    const sprites = new SpriteSheet(image,16,16);
-    sprites.define('ground',0,0);
-    sprites.define('sky',3,23);
-    loadLevel('1-1')
-    .then(level =>{
-        console.log(level);
-        level.backgrounds.forEach(background =>{
-            drawBackground(background,context,sprites);
-        });
-    });
+  const backgroundLayer = createBackgroundLayer(level.backgrounds,backgroundSprites)
+  comp.layers.push(backgroundLayer);
 
-    sprites.drawTile('sky',context,45,62);
-   
-})
+  const pos = {
+    x: 0,
+    y: 0,
+  };
+  
+  const spriteLayer = createSpriteLayer(marioSprite,pos);
+  comp.layers.push(spriteLayer)
+  function update() {
+    comp.draw(context)
+    marioSprite.draw("idle", context, pos.x, pos.y);
+    pos.x += 2;
+    pos.y += 2;
+    requestAnimationFrame(update);
+  }
+  update()
+});
+
+console.timeEnd("answer time");
 
 
 
